@@ -15,6 +15,10 @@ Your AI assistant can:
 - 📸 Memes + dog images
 - 📖 Word definitions
 - 🌍 IP geolocation
+- 💻 Public GitHub repository details (description, stars, forks, language)
+
+Try asking: "Show me the GitHub repository pavanbelagatti/Tool-Calling-Tutorial."
+This action uses the [GitHub REST API](https://docs.github.com/en/rest/repos/repos#get-a-repository) without an additional API key; unauthenticated rate limits apply.
 
 ### 🎨 Beautiful Streamlit Chat UI
 - Chat-style interface

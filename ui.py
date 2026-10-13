@@ -10,7 +10,7 @@ st.set_page_config(
 
 st.title("🤖 AI Tool-Calling Assistant")
 st.caption(
-    "Weather • News • Crypto • Forex • Fun Facts • Jokes • Advice • Memes • Dictionary • IP Info • Cats & Dogs"
+    "Weather • News • Crypto • Forex • Fun Facts • Jokes • Advice • Memes • Dictionary • IP Info • Cats & Dogs • GitHub"
 )
 
 # Keep chat history
