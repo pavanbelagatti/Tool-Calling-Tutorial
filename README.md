@@ -76,3 +76,13 @@ export OPENAI_API_KEY="your_api_key_here"
 ```
 streamlit run ui.py
 ```
+
+### Running tests
+
+From the repository root, run:
+
+```bash
+pytest
+```
+
+Tests mock HTTP requests and require no network access or API keys.
