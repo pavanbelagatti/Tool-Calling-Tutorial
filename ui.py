@@ -17,6 +17,14 @@ st.caption(
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+if st.sidebar.button("Clear chat"):
+    st.session_state.messages = []
+    st.rerun()
+
+st.sidebar.caption(
+    "Try: Weather in London? • Bitcoin price? • Look up pavanbelagatti/Tool-Calling-Tutorial on GitHub."
+)
+
 
 def render_message(role, content):
     """Render user or assistant messages without nesting chat_message blocks."""
