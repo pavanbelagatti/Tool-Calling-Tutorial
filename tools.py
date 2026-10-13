@@ -1,3 +1,5 @@
+from urllib.parse import quote
+
 import requests
 
 
@@ -413,3 +415,34 @@ def get_air_quality(city: str):
 
     except Exception as e:
         return {"error": f"Air quality API error: {e}"}
+
+
+# ============================================================
+# 15) GITHUB REPOSITORY
+# ============================================================
+
+def get_github_repo(owner: str, repo: str):
+    """Get public GitHub repository details without an API key."""
+    try:
+        owner = owner.strip()
+        repo = repo.strip()
+        if not owner or not repo:
+            return {"error": "GitHub owner and repository name are required"}
+
+        r = requests.get(
+            f"https://api.github.com/repos/{quote(owner, safe='')}/{quote(repo, safe='')}",
+            headers={"Accept": "application/vnd.github+json"},
+            timeout=10,
+        )
+        r.raise_for_status()
+        data = r.json()
+        return {
+            "repository": data.get("full_name"),
+            "description": data.get("description"),
+            "url": data.get("html_url"),
+            "stars": data.get("stargazers_count"),
+            "forks": data.get("forks_count"),
+            "language": data.get("language"),
+        }
+    except Exception as e:
+        return {"error": f"GitHub API error: {e}"}

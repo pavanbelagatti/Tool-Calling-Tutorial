@@ -17,6 +17,7 @@ from tools import (
     get_ip_info,
     get_cat_fact,
     get_dog_image,
+    get_github_repo,
 )
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -83,6 +84,18 @@ FUNCTIONS = [
     {"name": "get_ip_info", "description": "IP geolocation", "parameters": {"type": "object", "properties": {}}},
     {"name": "get_cat_fact", "description": "Cat fact", "parameters": {"type": "object", "properties": {}}},
     {"name": "get_dog_image", "description": "Dog image", "parameters": {"type": "object", "properties": {}}},
+    {
+        "name": "get_github_repo",
+        "description": "Get public GitHub repository details, including stars, forks, and language.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "owner": {"type": "string"},
+                "repo": {"type": "string"},
+            },
+            "required": ["owner", "repo"],
+        },
+    },
 ]
 
 
@@ -114,6 +127,7 @@ def ask_llm(user_input: str):
         if fn == "get_ip_info": return get_ip_info()
         if fn == "get_cat_fact": return get_cat_fact()
         if fn == "get_dog_image": return get_dog_image()
+        if fn == "get_github_repo": return get_github_repo(**args)
 
         return {"error": f"Unknown tool '{fn}'"}
 
