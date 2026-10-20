@@ -3,6 +3,25 @@ from urllib.parse import quote
 import requests
 
 
+class APIError(Exception):
+    """A public API request failed with a user-friendly message."""
+
+
+def _get_json(url, params=None, headers=None):
+    """Fetch JSON with a bounded wait and consistent request errors."""
+    kwargs = {"timeout": 10}
+    if params is not None:
+        kwargs["params"] = params
+    if headers is not None:
+        kwargs["headers"] = headers
+    try:
+        response = requests.get(url, **kwargs)
+        response.raise_for_status()
+        return response.json()
+    except (requests.RequestException, ValueError) as e:
+        raise APIError("Unable to fetch data. Please try again later.") from e
+
+
 # ============================================================
 # 1) WEATHER (Open-Meteo, with umbrella + jacket advice)
 # ============================================================
@@ -11,13 +30,10 @@ def get_weather(city: str):
     """Get live weather with precipitation probability, umbrella advice, and jacket advice."""
     try:
         # 1) City → coordinates
-        geo_resp = requests.get(
+        geo = _get_json(
             "https://geocoding-api.open-meteo.com/v1/search",
             params={"name": city, "count": 1, "language": "en", "format": "json"},
-            timeout=10,
         )
-        geo_resp.raise_for_status()
-        geo = geo_resp.json()
 
         if not geo.get("results"):
             return {"error": f"City '{city}' not found"}
@@ -26,7 +42,7 @@ def get_weather(city: str):
         lon = geo["results"][0]["longitude"]
 
         # 2) Weather
-        weather_resp = requests.get(
+        data = _get_json(
             "https://api.open-meteo.com/v1/forecast",
             params={
                 "latitude": lat,
@@ -34,10 +50,7 @@ def get_weather(city: str):
                 "current_weather": True,
                 "hourly": "precipitation_probability",
             },
-            timeout=10,
         )
-        weather_resp.raise_for_status()
-        data = weather_resp.json()
 
         current = data.get("current_weather", {})
         hourly_probs = data.get("hourly", {}).get("precipitation_probability", [])
@@ -92,13 +105,11 @@ def get_ai_news(region: str = None):
         if region:
             query = f"AI {region}"
 
-        resp = requests.get(
+        resp = _get_json(
             "https://hn.algolia.com/api/v1/search",
             params={"query": query},
-            timeout=10,
         )
-        resp.raise_for_status()
-        hits = resp.json().get("hits", [])
+        hits = resp.get("hits", [])
 
         cleaned = []
         for item in hits:
@@ -156,12 +167,9 @@ def get_crypto_price(symbol: str):
 
         coingecko_id = COINGECKO_IDS[symbol]
 
-        resp = requests.get(
+        data = _get_json(
             f"https://api.coingecko.com/api/v3/simple/price?ids={coingecko_id}&vs_currencies=usd",
-            timeout=10,
         )
-        resp.raise_for_status()
-        data = resp.json()
 
         if coingecko_id not in data:
             return {"error": f"Price not found for '{symbol}'"}
@@ -182,12 +190,9 @@ def get_crypto_price(symbol: str):
 
 def convert_currency(amount: float, from_currency: str, to_currency: str):
     try:
-        resp = requests.get(
+        data = _get_json(
             f"https://open.er-api.com/v6/latest/{from_currency.upper()}",
-            timeout=10,
         )
-        resp.raise_for_status()
-        data = resp.json()
         rates = data.get("rates", {})
 
         if to_currency.upper() not in rates:
@@ -211,9 +216,8 @@ def convert_currency(amount: float, from_currency: str, to_currency: str):
 
 def get_fun_fact():
     try:
-        r = requests.get("https://uselessfacts.jsph.pl/random.json?language=en", timeout=10)
-        r.raise_for_status()
-        return {"fact": r.json().get("text")}
+        r = _get_json("https://uselessfacts.jsph.pl/random.json?language=en")
+        return {"fact": r.get("text")}
     except Exception as e:
         return {"error": f"Fun fact API error: {e}"}
 
@@ -224,9 +228,7 @@ def get_fun_fact():
 
 def get_joke():
     try:
-        r = requests.get("https://official-joke-api.appspot.com/random_joke", timeout=10)
-        r.raise_for_status()
-        joke = r.json()
+        joke = _get_json("https://official-joke-api.appspot.com/random_joke")
         return {"setup": joke.get("setup"), "punchline": joke.get("punchline")}
     except Exception as e:
         return {"error": f"Joke API error: {e}"}
@@ -238,9 +240,8 @@ def get_joke():
 
 def get_advice():
     try:
-        r = requests.get("https://api.adviceslip.com/advice", timeout=10)
-        r.raise_for_status()
-        return {"advice": r.json()["slip"]["advice"]}
+        r = _get_json("https://api.adviceslip.com/advice")
+        return {"advice": r["slip"]["advice"]}
     except Exception as e:
         return {"error": f"Advice API error: {e}"}
 
@@ -251,9 +252,7 @@ def get_advice():
 
 def get_meme():
     try:
-        r = requests.get("https://meme-api.com/gimme", timeout=10)
-        r.raise_for_status()
-        j = r.json()
+        j = _get_json("https://meme-api.com/gimme")
         return {
             "title": j.get("title"),
             "image_url": j.get("url"),
@@ -269,10 +268,8 @@ def get_meme():
 
 def define_word(word: str):
     try:
-        r = requests.get(f"https://api.dictionaryapi.dev/api/v2/entries/en/{word}", timeout=10)
-        r.raise_for_status()
+        data = _get_json(f"https://api.dictionaryapi.dev/api/v2/entries/en/{word}")
 
-        data = r.json()
         meanings = []
         for m in data[0].get("meanings", []):
             meanings.append({
@@ -291,9 +288,8 @@ def define_word(word: str):
 
 def chuck_joke():
     try:
-        r = requests.get("https://api.chucknorris.io/jokes/random", timeout=10)
-        r.raise_for_status()
-        return {"joke": r.json().get("value")}
+        r = _get_json("https://api.chucknorris.io/jokes/random")
+        return {"joke": r.get("value")}
     except Exception as e:
         return {"error": f"Chuck Norris API error: {e}"}
 
@@ -304,9 +300,8 @@ def chuck_joke():
 
 def get_ip_info():
     try:
-        r = requests.get("https://ipapi.co/json/", timeout=10)
-        r.raise_for_status()
-        return r.json()
+        r = _get_json("https://ipapi.co/json/")
+        return r
     except Exception as e:
         return {"error": f"IP API error: {e}"}
 
@@ -317,9 +312,8 @@ def get_ip_info():
 
 def get_cat_fact():
     try:
-        r = requests.get("https://catfact.ninja/fact", timeout=10)
-        r.raise_for_status()
-        return {"fact": r.json().get("fact")}
+        r = _get_json("https://catfact.ninja/fact")
+        return {"fact": r.get("fact")}
     except Exception as e:
         return {"error": f"Cat fact API error: {e}"}
 
@@ -330,9 +324,8 @@ def get_cat_fact():
 
 def get_dog_image():
     try:
-        r = requests.get("https://dog.ceo/api/breeds/image/random", timeout=10)
-        r.raise_for_status()
-        return {"image_url": r.json().get("message")}
+        r = _get_json("https://dog.ceo/api/breeds/image/random")
+        return {"image_url": r.get("message")}
     except Exception as e:
         return {"error": f"Dog API error: {e}"}
 
@@ -348,13 +341,10 @@ def get_air_quality(city: str):
     """
     try:
         # 1) City → coordinates
-        geo_resp = requests.get(
+        geo = _get_json(
             "https://geocoding-api.open-meteo.com/v1/search",
             params={"name": city, "count": 1, "language": "en", "format": "json"},
-            timeout=10,
         )
-        geo_resp.raise_for_status()
-        geo = geo_resp.json()
 
         if not geo.get("results"):
             return {"error": f"City '{city}' not found"}
@@ -364,13 +354,10 @@ def get_air_quality(city: str):
         lon = loc["longitude"]
 
         # 2) Air Quality
-        aq_resp = requests.get(
+        aq = _get_json(
             "https://air-quality-api.open-meteo.com/v1/air-quality",
             params={"latitude": lat, "longitude": lon, "hourly": "pm2_5,pm10,us_aqi"},
-            timeout=10,
         )
-        aq_resp.raise_for_status()
-        aq = aq_resp.json()
 
         times = aq.get("hourly", {}).get("time", [])
         pm25_list = aq.get("hourly", {}).get("pm2_5", [])
@@ -429,13 +416,10 @@ def get_github_repo(owner: str, repo: str):
         if not owner or not repo:
             return {"error": "GitHub owner and repository name are required"}
 
-        r = requests.get(
+        data = _get_json(
             f"https://api.github.com/repos/{quote(owner, safe='')}/{quote(repo, safe='')}",
             headers={"Accept": "application/vnd.github+json"},
-            timeout=10,
         )
-        r.raise_for_status()
-        data = r.json()
         return {
             "repository": data.get("full_name"),
             "description": data.get("description"),
