@@ -1,7 +1,9 @@
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 import requests
+
+import tools
 
 from tools import convert_currency, get_crypto_price, get_joke
 
@@ -77,5 +79,78 @@ def test_joke_http_error(mock_get):
         "503 Service Unavailable"
     )
 
-    assert get_joke() == {"error": "Joke API error: 503 Service Unavailable"}
+    assert get_joke() == {"error": "Joke API error: Unable to fetch data. Please try again later."}
     mock_get.return_value.json.assert_not_called()
+
+
+TOOL_CALLS = [
+    (tools.get_weather, ("London",)),
+    (tools.get_ai_news, ()),
+    (tools.get_crypto_price, ("BTC",)),
+    (tools.convert_currency, (10, "USD", "EUR")),
+    (tools.get_fun_fact, ()),
+    (tools.get_joke, ()),
+    (tools.get_advice, ()),
+    (tools.get_meme, ()),
+    (tools.define_word, ("hello",)),
+    (tools.chuck_joke, ()),
+    (tools.get_ip_info, ()),
+    (tools.get_cat_fact, ()),
+    (tools.get_dog_image, ()),
+    (tools.get_air_quality, ("London",)),
+    (tools.get_github_repo, ("owner", "repo")),
+]
+
+
+@pytest.mark.parametrize("tool,args", TOOL_CALLS)
+@pytest.mark.parametrize("failure", ["timeout", "connection", "http", "json"])
+def test_tools_return_friendly_api_errors(mock_get, tool, args, failure):
+    if failure == "timeout":
+        mock_get.side_effect = requests.Timeout("private details")
+    elif failure == "connection":
+        mock_get.side_effect = requests.ConnectionError("private details")
+    elif failure == "http":
+        mock_get.return_value.raise_for_status.side_effect = requests.HTTPError(
+            "private details"
+        )
+    else:
+        mock_get.return_value.json.side_effect = ValueError("private details")
+
+    result = tool(*args)
+
+    assert list(result) == ["error"]
+    assert result["error"].endswith(
+        "Unable to fetch data. Please try again later."
+    )
+    assert "private details" not in result["error"]
+    assert mock_get.call_args.kwargs["timeout"] == 10
+    if failure == "http":
+        mock_get.return_value.json.assert_not_called()
+
+
+@pytest.mark.parametrize("tool", [tools.get_weather, tools.get_air_quality])
+def test_second_api_call_failure(mock_get, tool):
+    geocoding = Mock()
+    geocoding.json.return_value = {
+        "results": [{"latitude": 51.5, "longitude": -0.1}]
+    }
+    mock_get.side_effect = [geocoding, requests.Timeout("private details")]
+
+    assert tool("London")["error"].endswith(
+        "Unable to fetch data. Please try again later."
+    )
+    assert mock_get.call_count == 2
+    assert all(call.kwargs["timeout"] == 10 for call in mock_get.call_args_list)
+
+
+def test_get_json_forwards_parameters_and_headers(mock_get):
+    mock_get.return_value.json.return_value = {"result": "ok"}
+
+    assert tools._get_json(
+        "https://example.com", params={"q": "hello"}, headers={"Accept": "application/json"}
+    ) == {"result": "ok"}
+    mock_get.assert_called_once_with(
+        "https://example.com", timeout=10,
+        params={"q": "hello"}, headers={"Accept": "application/json"},
+    )
+    mock_get.return_value.raise_for_status.assert_called_once_with()
