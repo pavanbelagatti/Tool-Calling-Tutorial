@@ -4,6 +4,7 @@ from openai import OpenAI
 
 from tools import (
     get_weather,
+    get_sunrise_sunset,
     get_air_quality,
     get_ai_news,
     get_crypto_price,
@@ -42,6 +43,15 @@ FUNCTIONS = [
     {
         "name": "get_weather",
         "description": "Get weather + umbrella/jacket advice.",
+        "parameters": {
+            "type": "object",
+            "properties": {"city": {"type": "string"}},
+            "required": ["city"],
+        },
+    },
+    {
+        "name": "get_sunrise_sunset",
+        "description": "Get today's sunrise and sunset times in UTC and day length in seconds for a city.",
         "parameters": {
             "type": "object",
             "properties": {"city": {"type": "string"}},
@@ -130,6 +140,7 @@ def ask_llm(user_input: str):
         args = json.loads(msg.function_call.arguments or "{}")
 
         if fn == "get_weather": return get_weather(**args)
+        if fn == "get_sunrise_sunset": return get_sunrise_sunset(**args)
         if fn == "get_air_quality": return get_air_quality(**args)
         if fn == "get_ai_news": return get_ai_news(**args)
         if fn == "get_crypto_price": return get_crypto_price(**args)
