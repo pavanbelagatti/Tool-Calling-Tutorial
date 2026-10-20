@@ -99,6 +99,7 @@ TOOL_CALLS = [
     (tools.get_dog_image, ()),
     (tools.get_air_quality, ("London",)),
     (tools.get_github_repo, ("owner", "repo")),
+    (tools.get_public_holidays, ("DE", 2026)),
 ]
 
 
@@ -154,3 +155,39 @@ def test_get_json_forwards_parameters_and_headers(mock_get):
         params={"q": "hello"}, headers={"Accept": "application/json"},
     )
     mock_get.return_value.raise_for_status.assert_called_once_with()
+
+
+def test_public_holidays_success(mock_get):
+    mock_get.return_value.json.return_value = [{
+        "date": "2026-01-01", "name": "New Year's Day", "localName": "Neujahr",
+        "countryCode": "DE", "global": True, "types": ["Public"],
+    }]
+
+    assert tools.get_public_holidays(" de ", 2026) == [{
+        "date": "2026-01-01", "name": "New Year's Day", "local_name": "Neujahr",
+    }]
+    mock_get.assert_called_once_with(
+        "https://date.nager.at/api/v3/PublicHolidays/2026/DE", timeout=10,
+    )
+
+
+def test_public_holidays_defaults_to_current_year(mock_get):
+    mock_get.return_value.json.return_value = []
+    with patch("tools.date") as mock_date:
+        mock_date.today.return_value.year = 2030
+        assert tools.get_public_holidays("US") == []
+    mock_get.assert_called_once_with(
+        "https://date.nager.at/api/v3/PublicHolidays/2030/US", timeout=10,
+    )
+
+
+@pytest.mark.parametrize("country_code", ["", "India", "12", "../", "éé"])
+def test_public_holidays_invalid_country_code(mock_get, country_code):
+    assert "error" in tools.get_public_holidays(country_code, 2026)
+    mock_get.assert_not_called()
+
+
+def test_public_holidays_unknown_country_code(mock_get):
+    mock_get.return_value.raise_for_status.side_effect = requests.HTTPError("404")
+    assert "error" in tools.get_public_holidays("ZZ", 2026)
+    mock_get.return_value.json.assert_not_called()
