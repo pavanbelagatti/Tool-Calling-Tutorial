@@ -18,11 +18,27 @@ from tools import (
     get_cat_fact,
     get_dog_image,
     get_github_repo,
+    get_public_holidays,
 )
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 FUNCTIONS = [
+    {
+        "name": "get_public_holidays",
+        "description": "List public holiday dates and names for a country.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "country_code": {
+                    "type": "string",
+                    "description": "ISO 3166-1 alpha-2 country code, such as IN, DE, or US.",
+                },
+                "year": {"type": "integer", "description": "Year to query; defaults to the current year."},
+            },
+            "required": ["country_code"],
+        },
+    },
     {
         "name": "get_weather",
         "description": "Get weather + umbrella/jacket advice.",
@@ -128,6 +144,7 @@ def ask_llm(user_input: str):
         if fn == "get_cat_fact": return get_cat_fact()
         if fn == "get_dog_image": return get_dog_image()
         if fn == "get_github_repo": return get_github_repo(**args)
+        if fn == "get_public_holidays": return get_public_holidays(**args)
 
         return {"error": f"Unknown tool '{fn}'"}
 

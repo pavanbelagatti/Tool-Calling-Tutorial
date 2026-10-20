@@ -1,3 +1,4 @@
+from datetime import date
 from urllib.parse import quote
 
 import requests
@@ -430,3 +431,28 @@ def get_github_repo(owner: str, repo: str):
         }
     except Exception as e:
         return {"error": f"GitHub API error: {e}"}
+
+
+# ============================================================
+# 16) PUBLIC HOLIDAYS (Nager.Date)
+# ============================================================
+
+def get_public_holidays(country_code: str, year: int | None = None):
+    """Get public holiday dates and names for a country without an API key."""
+    try:
+        country_code = country_code.strip().upper()
+        if len(country_code) != 2 or not country_code.isascii() or not country_code.isalpha():
+            return {"error": "Use a two-letter ISO country code, such as IN, DE, or US."}
+
+        if year is None:
+            year = date.today().year
+
+        data = _get_json(
+            f"https://date.nager.at/api/v3/PublicHolidays/{year}/{country_code}",
+        )
+        return [
+            {"date": holiday["date"], "name": holiday["name"], "local_name": holiday["localName"]}
+            for holiday in data
+        ]
+    except Exception as e:
+        return {"error": f"Public holidays API error: {e}"}

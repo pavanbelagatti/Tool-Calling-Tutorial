@@ -11,6 +11,7 @@ Your AI assistant can:
 - 📰 Top AI news (cleaned + fallback links)
 - 🪙 Crypto prices (BTC, ETH, SOL, DOGE…)
 - 💱 Currency conversion
+- 📅 Public holiday dates and names by country and year (Nager.Date coverage)
 - 😂 Jokes, fun facts, advice
 - 📸 Memes + dog images
 - 📖 Word definitions
