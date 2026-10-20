@@ -18,11 +18,21 @@ from tools import (
     get_cat_fact,
     get_dog_image,
     get_github_repo,
+    get_wikipedia_summary,
 )
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 FUNCTIONS = [
+    {
+        "name": "get_wikipedia_summary",
+        "description": "Get a short English Wikipedia summary and a source link for a topic.",
+        "parameters": {
+            "type": "object",
+            "properties": {"topic": {"type": "string"}},
+            "required": ["topic"],
+        },
+    },
     {
         "name": "get_weather",
         "description": "Get weather + umbrella/jacket advice.",
@@ -128,6 +138,7 @@ def ask_llm(user_input: str):
         if fn == "get_cat_fact": return get_cat_fact()
         if fn == "get_dog_image": return get_dog_image()
         if fn == "get_github_repo": return get_github_repo(**args)
+        if fn == "get_wikipedia_summary": return get_wikipedia_summary(**args)
 
         return {"error": f"Unknown tool '{fn}'"}
 
