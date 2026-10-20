@@ -99,6 +99,7 @@ TOOL_CALLS = [
     (tools.get_dog_image, ()),
     (tools.get_air_quality, ("London",)),
     (tools.get_github_repo, ("owner", "repo")),
+    (tools.get_wikipedia_summary, ("Ada Lovelace",)),
 ]
 
 
@@ -154,3 +155,48 @@ def test_get_json_forwards_parameters_and_headers(mock_get):
         params={"q": "hello"}, headers={"Accept": "application/json"},
     )
     mock_get.return_value.raise_for_status.assert_called_once_with()
+
+
+@pytest.mark.parametrize("topic,encoded", [
+    ("Ada Lovelace", "Ada%20Lovelace"),
+    ("AC/DC", "AC%2FDC"),
+    ("René Descartes", "Ren%C3%A9%20Descartes"),
+])
+def test_wikipedia_summary_success(mock_get, topic, encoded):
+    mock_get.return_value.json.return_value = {
+        "title": topic,
+        "extract": "An article summary.",
+        "content_urls": {"desktop": {"page": "https://en.wikipedia.org/wiki/Article"}},
+    }
+
+    assert tools.get_wikipedia_summary(topic) == {
+        "title": topic,
+        "summary": "An article summary.",
+        "url": "https://en.wikipedia.org/wiki/Article",
+    }
+    mock_get.assert_called_once_with(
+        f"https://en.wikipedia.org/api/rest_v1/page/summary/{encoded}",
+        timeout=10,
+        headers={
+            "User-Agent": "Tool-Calling-Tutorial/1.0 (https://github.com/pavanbelagatti/Tool-Calling-Tutorial)",
+        },
+    )
+    mock_get.return_value.raise_for_status.assert_called_once_with()
+
+
+def test_wikipedia_missing_page(mock_get):
+    mock_get.return_value.raise_for_status.side_effect = requests.HTTPError(
+        "404 Not Found", response=Mock(status_code=404)
+    )
+
+    assert tools.get_wikipedia_summary("Nonexistent topic") == {
+        "error": "Wikipedia API error: Unable to fetch data. Please try again later.",
+    }
+    mock_get.return_value.json.assert_not_called()
+
+
+def test_wikipedia_empty_topic(mock_get):
+    assert tools.get_wikipedia_summary("  ") == {
+        "error": "A Wikipedia topic is required",
+    }
+    mock_get.assert_not_called()

@@ -430,3 +430,29 @@ def get_github_repo(owner: str, repo: str):
         }
     except Exception as e:
         return {"error": f"GitHub API error: {e}"}
+
+
+# ============================================================
+# 16) WIKIPEDIA SUMMARY
+# ============================================================
+
+def get_wikipedia_summary(topic: str):
+    """Get a short English Wikipedia summary and a link to the article."""
+    try:
+        topic = topic.strip()
+        if not topic:
+            return {"error": "A Wikipedia topic is required"}
+
+        data = _get_json(
+            f"https://en.wikipedia.org/api/rest_v1/page/summary/{quote(topic, safe='')}",
+            headers={
+                "User-Agent": "Tool-Calling-Tutorial/1.0 (https://github.com/pavanbelagatti/Tool-Calling-Tutorial)",
+            },
+        )
+        return {
+            "title": data.get("title"),
+            "summary": data.get("extract"),
+            "url": data.get("content_urls", {}).get("desktop", {}).get("page"),
+        }
+    except Exception as e:
+        return {"error": f"Wikipedia API error: {e}"}
