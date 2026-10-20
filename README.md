@@ -7,6 +7,7 @@ This project demonstrates how to connect an LLM to real-world tools like weather
 🔥 Real-World Tool Calls
 Your AI assistant can:
 - 🌦 Live weather with umbrella + jacket recommendations
+- 🌅 Today's sunrise and sunset in UTC + day length in seconds ([Sunrise-Sunset.org](https://sunrise-sunset.org/))
 - 🏭 Air quality (PM2.5, PM10, US AQI + category)
 - 📰 Top AI news (cleaned + fallback links)
 - 🪙 Crypto prices (BTC, ETH, SOL, DOGE…)
