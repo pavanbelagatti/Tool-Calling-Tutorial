@@ -100,6 +100,7 @@ TOOL_CALLS = [
     (tools.get_air_quality, ("London",)),
     (tools.get_github_repo, ("owner", "repo")),
     (tools.get_public_holidays, ("DE", 2026)),
+    (tools.get_wikipedia_summary, ("Ada Lovelace",)),
 ]
 
 
@@ -191,3 +192,73 @@ def test_public_holidays_unknown_country_code(mock_get):
     mock_get.return_value.raise_for_status.side_effect = requests.HTTPError("404")
     assert "error" in tools.get_public_holidays("ZZ", 2026)
     mock_get.return_value.json.assert_not_called()
+
+
+@pytest.mark.parametrize("topic,encoded", [
+    ("Ada Lovelace", "Ada%20Lovelace"),
+    ("AC/DC", "AC%2FDC"),
+    ("René #1?", "Ren%C3%A9%20%231%3F"),
+])
+def test_wikipedia_summary_success(mock_get, topic, encoded):
+    mock_get.return_value.json.return_value = {
+        "title": topic,
+        "extract": "A short summary.",
+        "content_urls": {"desktop": {"page": "https://en.wikipedia.org/wiki/Example"}},
+    }
+
+    assert tools.get_wikipedia_summary(topic) == {
+        "title": topic,
+        "summary": "A short summary.",
+        "url": "https://en.wikipedia.org/wiki/Example",
+    }
+    mock_get.assert_called_once_with(
+        f"https://en.wikipedia.org/api/rest_v1/page/summary/{encoded}",
+        timeout=10,
+        headers={
+            "User-Agent": "Tool-Calling-Tutorial/1.0 (https://github.com/pavanbelagatti/Tool-Calling-Tutorial)",
+        },
+    )
+    mock_get.return_value.raise_for_status.assert_called_once_with()
+
+
+def test_wikipedia_summary_missing_page(mock_get):
+    mock_get.return_value.raise_for_status.side_effect = requests.HTTPError("404")
+
+    assert tools.get_wikipedia_summary("Nonexistent topic") == {
+        "error": "Wikipedia API error: Unable to fetch data. Please try again later.",
+    }
+    mock_get.return_value.json.assert_not_called()
+
+
+def test_wikipedia_summary_missing_extract(mock_get):
+    mock_get.return_value.json.return_value = {"title": "Example"}
+
+    assert tools.get_wikipedia_summary("Example") == {
+        "error": "No Wikipedia summary found for 'Example'",
+    }
+
+
+def test_wikipedia_summary_empty_topic(mock_get):
+    assert tools.get_wikipedia_summary("  ") == {"error": "A Wikipedia topic is required"}
+    mock_get.assert_not_called()
+
+
+def test_wikipedia_summary_schema_and_routing():
+    with patch("openai.OpenAI"):
+        import main
+
+    schema = next(item for item in main.FUNCTIONS if item["name"] == "get_wikipedia_summary")
+    assert schema["parameters"] == {
+        "type": "object",
+        "properties": {"topic": {"type": "string"}},
+        "required": ["topic"],
+    }
+
+    message = Mock()
+    message.function_call.name = "get_wikipedia_summary"
+    message.function_call.arguments = '{"topic": "Ada Lovelace"}'
+    result = {"title": "Ada Lovelace", "summary": "A mathematician.", "url": "https://en.wikipedia.org/wiki/Ada_Lovelace"}
+    with patch.object(main, "client") as client, patch.object(main, "get_wikipedia_summary", return_value=result) as lookup:
+        client.chat.completions.create.return_value.choices = [Mock(message=message)]
+        assert main.ask_llm("Give me a short summary of Ada Lovelace from Wikipedia") == result
+        lookup.assert_called_once_with(topic="Ada Lovelace")

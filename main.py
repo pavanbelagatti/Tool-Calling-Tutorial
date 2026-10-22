@@ -19,11 +19,21 @@ from tools import (
     get_dog_image,
     get_github_repo,
     get_public_holidays,
+    get_wikipedia_summary,
 )
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 FUNCTIONS = [
+    {
+        "name": "get_wikipedia_summary",
+        "description": "Get a short Wikipedia summary of a topic with a source link.",
+        "parameters": {
+            "type": "object",
+            "properties": {"topic": {"type": "string"}},
+            "required": ["topic"],
+        },
+    },
     {
         "name": "get_public_holidays",
         "description": "List public holiday dates and names for a country.",
@@ -145,6 +155,7 @@ def ask_llm(user_input: str):
         if fn == "get_dog_image": return get_dog_image()
         if fn == "get_github_repo": return get_github_repo(**args)
         if fn == "get_public_holidays": return get_public_holidays(**args)
+        if fn == "get_wikipedia_summary": return get_wikipedia_summary(**args)
 
         return {"error": f"Unknown tool '{fn}'"}
 

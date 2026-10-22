@@ -456,3 +456,32 @@ def get_public_holidays(country_code: str, year: int | None = None):
         ]
     except Exception as e:
         return {"error": f"Public holidays API error: {e}"}
+
+
+# ============================================================
+# 17) WIKIPEDIA SUMMARY
+# ============================================================
+
+def get_wikipedia_summary(topic: str):
+    """Get a short English Wikipedia summary and its source link."""
+    try:
+        topic = topic.strip()
+        if not topic:
+            return {"error": "A Wikipedia topic is required"}
+
+        data = _get_json(
+            f"https://en.wikipedia.org/api/rest_v1/page/summary/{quote(topic, safe='')}",
+            headers={
+                "User-Agent": "Tool-Calling-Tutorial/1.0 (https://github.com/pavanbelagatti/Tool-Calling-Tutorial)",
+            },
+        )
+        if not data.get("extract"):
+            return {"error": f"No Wikipedia summary found for '{topic}'"}
+
+        return {
+            "title": data.get("title"),
+            "summary": data["extract"],
+            "url": data.get("content_urls", {}).get("desktop", {}).get("page"),
+        }
+    except Exception as e:
+        return {"error": f"Wikipedia API error: {e}"}
