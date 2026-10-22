@@ -15,6 +15,7 @@ Your AI assistant can:
 - 😂 Jokes, fun facts, advice
 - 📸 Memes + dog images
 - 📖 Word definitions
+- 📚 Wikipedia summaries with source links
 - 🌍 IP geolocation
 - 💻 Public GitHub repository details (description, stars, forks, language)
 
