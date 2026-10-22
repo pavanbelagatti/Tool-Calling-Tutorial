@@ -85,6 +85,7 @@ def test_joke_http_error(mock_get):
 
 TOOL_CALLS = [
     (tools.get_weather, ("London",)),
+    (tools.get_sunrise_sunset, ("Tokyo",)),
     (tools.get_ai_news, ()),
     (tools.get_crypto_price, ("BTC",)),
     (tools.convert_currency, (10, "USD", "EUR")),
@@ -129,7 +130,7 @@ def test_tools_return_friendly_api_errors(mock_get, tool, args, failure):
         mock_get.return_value.json.assert_not_called()
 
 
-@pytest.mark.parametrize("tool", [tools.get_weather, tools.get_air_quality])
+@pytest.mark.parametrize("tool", [tools.get_weather, tools.get_air_quality, tools.get_sunrise_sunset])
 def test_second_api_call_failure(mock_get, tool):
     geocoding = Mock()
     geocoding.json.return_value = {
@@ -191,3 +192,49 @@ def test_public_holidays_unknown_country_code(mock_get):
     mock_get.return_value.raise_for_status.side_effect = requests.HTTPError("404")
     assert "error" in tools.get_public_holidays("ZZ", 2026)
     mock_get.return_value.json.assert_not_called()
+
+
+def test_sunrise_sunset_success(mock_get):
+    results = {
+        "sunrise": "2026-10-21T20:53:00+00:00",
+        "sunset": "2026-10-22T07:58:00+00:00",
+        "day_length": 39900,
+    }
+    mock_get.return_value.json.side_effect = [
+        {"results": [{"latitude": 35.68, "longitude": 139.69}]},
+        {"status": "OK", "results": {**results, "solar_noon": "unused"}},
+    ]
+
+    assert tools.get_sunrise_sunset("Tokyo") == {"city": "Tokyo", **results}
+    assert mock_get.call_count == 2
+    assert mock_get.call_args_list[0].args == (
+        "https://geocoding-api.open-meteo.com/v1/search",
+    )
+    assert mock_get.call_args_list[0].kwargs == {
+        "params": {"name": "Tokyo", "count": 1, "language": "en", "format": "json"},
+        "timeout": 10,
+    }
+    mock_get.assert_called_with(
+        "https://api.sunrise-sunset.org/json",
+        params={"lat": 35.68, "lng": 139.69, "formatted": 0}, timeout=10,
+    )
+
+
+def test_sunrise_sunset_unknown_city(mock_get):
+    mock_get.return_value.json.return_value = {"results": []}
+
+    assert tools.get_sunrise_sunset("Unknown City") == {
+        "error": "City 'Unknown City' not found",
+    }
+    assert mock_get.call_count == 1
+
+
+def test_sunrise_sunset_api_error_status(mock_get):
+    mock_get.return_value.json.side_effect = [
+        {"results": [{"latitude": 35.68, "longitude": 139.69}]},
+        {"status": "UNKNOWN_ERROR", "results": ""},
+    ]
+
+    assert tools.get_sunrise_sunset("Tokyo") == {
+        "error": "Sunrise-sunset API error: Unable to fetch data. Please try again later.",
+    }

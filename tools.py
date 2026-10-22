@@ -456,3 +456,39 @@ def get_public_holidays(country_code: str, year: int | None = None):
         ]
     except Exception as e:
         return {"error": f"Public holidays API error: {e}"}
+
+
+# ============================================================
+# 17) SUNRISE AND SUNSET (Sunrise-Sunset API)
+# ============================================================
+
+def get_sunrise_sunset(city: str):
+    """Get today's sunrise and sunset in ISO 8601 UTC, plus day length in seconds."""
+    try:
+        geo = _get_json(
+            "https://geocoding-api.open-meteo.com/v1/search",
+            params={"name": city, "count": 1, "language": "en", "format": "json"},
+        )
+
+        if not geo.get("results"):
+            return {"error": f"City '{city}' not found"}
+
+        lat = geo["results"][0]["latitude"]
+        lon = geo["results"][0]["longitude"]
+        data = _get_json(
+            "https://api.sunrise-sunset.org/json",
+            params={"lat": lat, "lng": lon, "formatted": 0},
+        )
+
+        if data.get("status") != "OK":
+            return {"error": "Sunrise-sunset API error: Unable to fetch data. Please try again later."}
+
+        results = data["results"]
+        return {
+            "city": city,
+            "sunrise": results["sunrise"],
+            "sunset": results["sunset"],
+            "day_length": results["day_length"],
+        }
+    except Exception as e:
+        return {"error": f"Sunrise-sunset API error: {e}"}
